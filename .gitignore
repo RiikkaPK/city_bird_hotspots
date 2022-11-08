@@ -47,3 +47,14 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+*.dbf
+*.shx
+*.qpj
+*.prj
+ebird_data_wrangling/data/ebd_CA_relAug-2022.txt
+ebird_data_wrangling/data/ebird_data.txt
+ebird_data_wrangling/output/filtered1.txt
+ebird_data_wrangling/data/ebird_sampling.txt
+ebird_data_wrangling/data/ebd_sampling_relAug-2022.txt
+ebird_data_wrangling/data/CMAs.shp
+ebird_data_wrangling/data/CMAs_ll.shp
