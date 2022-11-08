@@ -145,17 +145,13 @@ subs1 <- df[complete.cases(df$`Species2$CMANAME`), ] #4854449 obs Return a logic
 
 write.csv(subs1, file="data/birds_in_CMAs1.csv")
 
-summary(subs1)
-# subset data frame
-ebd_in_CMAs <- ebd_filt[in_CMAs[, 1], ]
-# ebd_in_CMAs_df <- as.data.frame(ebd_in_CMAs)
-# write.csv(ebd_in_CMAs_df, "ebd_in_CMAs_df.csv")
-
-
 # clear R environment at this point #
+
+# add header to the second split ebird file in Git bash 
 #{ echo -e "COMMON NAME,SCIENTIFIC NAME,OBSERVATION COUNT,STATE,LATITUDE,LONGITUDE,OBSERVATION DATE,OBSERVER ID,SAMPLING EVENT IDENTIFIER,DURATION MINUTES,EFFORT DISTANCE KM,EFFORT AREA HA,NUMBER OBSERVERS,ALL SPECIES REPORTED,GROUP IDENTIFIER"; cat uniq_dfiltered2.txt; } >dfiltered.txt
 
-#cat dfiltered.txt | tr "\\t" "," > filtered1.txt
+# replace space with , 
+# cat dfiltered.txt | tr "\\t" "," > filtered1.txt
 
 #### read in 2nd half of bird data (filtered1.txt), and turn it into a SpatialPointsDataFrame ####
 
@@ -166,7 +162,7 @@ proj4string(ebd_filt1) <- CRS("+proj=longlat +datum=WGS84")
 
 # read in  polygons --> this is the CMAs shape file 
 
-CMAs  <- readOGR("E:/city_bird_hotspots/ebird_data_wrangling/CMAs.shp")
+CMAs  <- readOGR("E:/city_bird_hotspots/ebird_data_wrangling/data/CMAs.shp")
 
 proj4string(CMAs)
 
@@ -174,11 +170,6 @@ proj4string(CMAs)
 
 species1 <- spTransform(ebd_filt1, CRS("+proj=lcc +lat_0=63.390675 +lon_0=-91.8666666666667 +lat_1=49 +lat_2=77 +x_0=6200000 +y_0=3000000 +datum=NAD83 +units=m +no_defs"))
 proj4string(species1)
-
-#plot(CMAs) #plot CMAs
-
-memory.limit(100000000000000)
-gc()
 
 #spatial join of species over CMAs
 Species2 <- over(species1,CMAs) 
@@ -204,28 +195,14 @@ sampling <- read_sampling("data/ebd_checklists_filtered.txt", unique = TRUE) #19
 
 coordinates(sampling) <- c("longitude", "latitude")
 proj4string(sampling) <- CRS("+proj=longlat +datum=WGS84")
-proj4string(CMAs)
 
-#To transform from one CRS to another so that coordinates are in the same lat/lon reference system
+#To transform from one CRS to another so that coordinates are in the same lat/lon reference system as the birds
 sampling1 <- spTransform(sampling, CRS("+proj=lcc +lat_0=63.390675 +lon_0=-91.8666666666667 +lat_1=49 +lat_2=77 +x_0=6200000 +y_0=3000000 +datum=NAD83 +units=m +no_defs"))
-proj4string(sampling1)
 
-#spatial join of checklists over CMAs
-sampling2 <- over(sampling1,CMAs) # obs.
-#store the city name as an attribute of the birds data
-sampling3 <- cbind(sampling1@data,sampling2$CMANAME)
-#keep checklists latitude and longitude also
-sampling4 <- cbind(sampling1@coords,sampling3)
-df <- as.data.frame(sampling4) 
-summary(df)
-str(df)
-#remove checklists not in CMAs
-subs1 <- df[complete.cases(df$`sampling2$CMANAME`), ] #990607 obs Return a logical vector indicating which cases are complete, i.e., have no missing values.
+write.csv(sampling1, file="data/checklists_in_CMAs1.csv") #NAD83
 
-write.csv(subs1, file="data/checklists_in_CMAs.csv") #NAD83
-
-#write.csv(df, file="data/checklists_in_CMAs1.csv") #NAD83
 # use auk_zerofill() to read these two files into R and combine them together to produce zero-filled, detection/non-detection data (also called presence/absence data. by default auk_zerofill() returns a compact representation of the data, consisting of a list of two data frames, one with checklist data and the other with observation data; the use of collapse = TRUE combines these into a single data frame, which will be easier to work with
+
 library(readr)
 birds1 <- read_csv("data/birds_in_CMAs1.csv", 
                    col_types = cols(...1 = col_skip(), effort_area_ha = col_double()), 
@@ -234,38 +211,22 @@ birds1 <- read_csv("data/birds_in_CMAs1.csv",
 birds2 <- read_csv("data/birds_in_CMAs3.csv", 
                    col_types = cols(...1 = col_skip(), effort_area_ha = col_double()), 
                    na = "empty")
+
 sampling <- read_csv("data/checklists_in_CMAs1") #1935412 obs.
-sampling <- read_sampling("data/ebd_checklists_filtered.txt") #1935412 obs.
 
-dir.create("output", showWarnings = FALSE)
+# zerofill first part of ebird data
 
-# output files
-data_dir <- "output"
+ebd_zf_1<- auk_zerofill(birds1, checklists_in_CMAs1, rollup = FALSE, collapse = TRUE)
 
-if (!dir.exists(data_dir)) {
-  dir.create(data_dir)
-}
-
-ebd_zf_1 <- file.path(data_dir, "ebd_zf_1.csv")
-ebd_zf_2 <- file.path(data_dir, "ebd_zf_2.csv")
-
-# only run if the files don't already exist
-ebd_zf_1<- if (!file.exists(ebd_zf_1)) {
-  auk_zerofill(birds1, checklists_in_CMAs1, rollup = FALSE, collapse = TRUE)
-}
 write.csv(ebd_zf_1, file="ebd_zf_1.csv")
 
-if (!file.exists(ebd_zf_2)) {
-  auk_zerofill(birds2, sampling, rollup = FALSE, collapse = TRUE)
-}
+# zerofill second part
 
-#ebd_zf_1 <- auk_zerofill(birds1, sampling, rollup = FALSE, collapse = TRUE)
+ebd_zf_2 <- auk_zerofill(birds2, sampling, rollup = FALSE, collapse = TRUE)
+
 
 # ebd_zf_df <- as.data.frame(ebd_zf)
 
-# write.csv(ebd_zf_df, file="data/ebird_zf.csv")
-
-summary(ebd_zf)
 
 # transform some of the variables to a more useful form for modelling.eBirders have the option of entering an âXâ rather than a count for a species, to indicate that the species was present, but they didnât keep track of how many individuals were observed. During the modeling stage, weâll want the observation_count variable stored as an integer and weâll convert âXâ to NA to allow for this.
 
@@ -290,7 +251,5 @@ ebd_zf_filtered <- ebd_zf %>%     #4733025 obs.
 
 summary(ebd_zf_filtered)
 
-# Call renv::snapshot() to save the state of your project library if your attempts to update R packages were successful 
-renv::snapshot()
 
 
